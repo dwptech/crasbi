@@ -3,9 +3,8 @@ name = "backend"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Mahnoor Rana",email = "mahnoorrana2002@gmail.com"}
+    { name = "Mahnoor Rana", email = "mahnoorrana2002@gmail.com" }
 ]
-readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "django>=5.2.5",
@@ -16,6 +15,9 @@ dependencies = [
     "mssql-django>=1.4.0",
     "pyodbc>=4.0.39"
 ]
+
+[tool.poetry]
+package-mode = false
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
