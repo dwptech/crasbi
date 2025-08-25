@@ -4,24 +4,17 @@ from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import SourceConnection
-from .serializers import (
-    SourceConnectionSerializer, 
-    SourceConnectionDetailSerializer
-)
+from .serializers import SourceConnectionSerializer
 
 class SourceConnectionViewSet(viewsets.ModelViewSet):
     queryset = SourceConnection.objects.all()
+    serializer_class = SourceConnectionSerializer
     permission_classes = []  # No authentication required
     filter_backends = [SearchFilter, OrderingFilter, DjangoFilterBackend]
     search_fields = ['source_name', 'host', 'username', 'db_type']
     ordering_fields = ['source_name', 'db_type', 'host', 'created_at', 'is_active']
     ordering = ['-created_at']
     filterset_fields = ['db_type', 'is_active']
-
-    def get_serializer_class(self):
-        if self.action == 'retrieve':
-            return SourceConnectionDetailSerializer
-        return SourceConnectionSerializer
 
     @action(detail=True, methods=['post'])
     def toggle_active(self, request, pk=None):
