@@ -29,7 +29,7 @@ class SourceConnection(models.Model):
     inserted_by = models.CharField(max_length=100)
 
     class Meta:
-        # db_table = 'source_connection'  # Uncomment when using SQL Server
+        db_table = 'source_connection'  # Use exact table name from SQL schema
         verbose_name = 'Source Connection'
         verbose_name_plural = 'Source Connections'
         ordering = ['-created_at']
@@ -73,3 +73,28 @@ class SourceConnection(models.Model):
         
         if not self.host or self.host.strip() == '':
             raise ValidationError('Host cannot be empty')
+
+class Job(models.Model):
+    id = models.AutoField(primary_key=True)
+    job_name = models.CharField(max_length=255)
+    source = models.ForeignKey(
+        SourceConnection,
+        on_delete=models.CASCADE,
+        db_column='source_id',
+        related_name='jobs'
+    )
+    source_table = models.CharField(max_length=255)
+    target_table = models.CharField(max_length=255)
+    job_query = models.TextField()  # NVARCHAR(MAX)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.CharField(max_length=100)
+
+    class Meta:
+        db_table = 'bi_jobs'
+        verbose_name = 'Job'
+        verbose_name_plural = 'Jobs'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.job_name

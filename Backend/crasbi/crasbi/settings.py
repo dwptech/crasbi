@@ -79,25 +79,18 @@ WSGI_APPLICATION = 'crasbi.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'mssql',
+        'NAME': 'crasdb',
+        'USER': 'sa',
+        'PASSWORD': 'sa-1234',
+        'HOST': '103.31.83.27',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 18 for SQL Server',
+            'extra_params': 'Encrypt=yes;TrustServerCertificate=yes;'
+        },
     }
 }
-
-# SQL Server Configuration (uncomment when dependencies are properly installed)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'sql_server.pyodbc',
-#         'NAME': 'crasdb',
-#         'USER': 'sa',
-#         'PASSWORD': 'sa-1234',
-#         'HOST': '103.31.83.27',
-#         'PORT': '1433',
-#         'OPTIONS': {
-#             'driver': 'ODBC Driver 17 for SQL Server',
-#         },
-#     }
-# }
 
 
 # Password validation
