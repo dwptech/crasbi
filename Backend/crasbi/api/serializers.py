@@ -4,14 +4,26 @@ from .models import SourceConnection
 class SourceConnectionSerializer(serializers.ModelSerializer):
     db_type_display = serializers.CharField(source='get_db_type_display', read_only=True)
     inserted_by_username = serializers.CharField(source='inserted_by', read_only=True)
+    connection_string = serializers.SerializerMethodField()
     
     class Meta:
         model = SourceConnection
-        fields = ['id', 'source_name', 'db_type', 'db_type_display', 'host', 'port', 'username', 'password', 'is_active', 'created_at', 'updated_at', 'inserted_by_username']
+        fields = [
+            'id', 'source_name', 'db_type', 'db_type_display', 'host', 'port', 
+            'username', 'password', 'is_active', 'created_at', 'updated_at', 
+            'inserted_by_username', 'connection_string'
+        ]
         read_only_fields = ['id', 'created_at', 'inserted_by_username']
         extra_kwargs = {
             'password': {'write_only': True}
         }
+
+    def get_connection_string(self, obj):
+        """Only show connection string in detail view"""
+        request = self.context.get('request')
+        if request and request.method == 'GET' and 'pk' in request.parser_context.get('kwargs', {}):
+            return obj.get_connection_string()
+        return None
 
     def create(self, validated_data):
         # Set inserted_by from request user or default value
@@ -28,17 +40,13 @@ class SourceConnectionSerializer(serializers.ModelSerializer):
         instance.updated_at = timezone.now()
         return super().update(instance, validated_data)
 
-class SourceConnectionDetailSerializer(serializers.ModelSerializer):
-    db_type_display = serializers.CharField(source='get_db_type_display', read_only=True)
-    connection_string = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = SourceConnection
-        fields = '__all__'
-        read_only_fields = ['id', 'created_at', 'updated_at', 'inserted_by']
-        extra_kwargs = {
-            'password': {'write_only': True}
-        }
-
-    def get_connection_string(self, obj):
-        return obj.get_connection_string()
+    def to_representation(self, instance):
+        """Customize output based on context"""
+        data = super().to_representation(instance)
+        
+        # Remove connection_string from list views
+        request = self.context.get('request')
+        if request and request.method == 'GET' and 'pk' not in request.parser_context.get('kwargs', {}):
+            data.pop('connection_string', None)
+        
+        return data
