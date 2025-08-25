@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SourceConnection
+from .models import SourceConnection, Job
 
 class SourceConnectionSerializer(serializers.ModelSerializer):
     db_type_display = serializers.CharField(source='get_db_type_display', read_only=True)
@@ -50,3 +50,22 @@ class SourceConnectionSerializer(serializers.ModelSerializer):
             data.pop('connection_string', None)
         
         return data
+
+class JobSerializer(serializers.ModelSerializer):
+    source_name = serializers.CharField(source='source.source_name', read_only=True)
+
+    class Meta:
+        model = Job
+        fields = [
+            'id', 'job_name', 'source', 'source_name', 'source_table', 'target_table',
+            'job_query', 'created_at', 'updated_at', 'created_by'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+class JobDetailSerializer(serializers.ModelSerializer):
+    source = SourceConnectionSerializer(read_only=True)
+
+    class Meta:
+        model = Job
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at']

@@ -3,8 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import SourceConnection
-from .serializers import SourceConnectionSerializer
+from .models import SourceConnection, Job
+from .serializers import SourceConnectionSerializer, JobSerializer, JobDetailSerializer
 
 class SourceConnectionViewSet(viewsets.ModelViewSet):
     queryset = SourceConnection.objects.all()
@@ -59,3 +59,30 @@ class SourceConnectionViewSet(viewsets.ModelViewSet):
             'connection_string': source_connection.get_connection_string()
         }
         return Response(data)
+
+class JobViewSet(viewsets.ModelViewSet):
+    queryset = Job.objects.select_related('source').all()
+    permission_classes = []
+    filter_backends = [SearchFilter, OrderingFilter, DjangoFilterBackend]
+    search_fields = ['job_name', 'source_table', 'target_table', 'created_by']
+    ordering_fields = ['job_name', 'created_at', 'updated_at']
+    ordering = ['-created_at']
+    filterset_fields = ['source', 'created_by']
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return JobDetailSerializer
+        return JobSerializer
+
+    @action(detail=False, methods=['get'])
+    def by_source(self, request):
+        source_id = request.query_params.get('source_id')
+        qs = self.queryset
+        if source_id:
+            qs = qs.filter(source_id=source_id)
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = JobSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = JobSerializer(qs, many=True)
+        return Response(serializer.data)
