@@ -77,27 +77,28 @@ WSGI_APPLICATION = 'crasbi.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
-# SQL Server Configuration (uncomment when dependencies are properly installed)
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'sql_server.pyodbc',
-#         'NAME': 'crasdb',
-#         'USER': 'sa',
-#         'PASSWORD': 'sa-1234',
-#         'HOST': '103.31.83.27',
-#         'PORT': '1433',
-#         'OPTIONS': {
-#             'driver': 'ODBC Driver 17 for SQL Server',
-#         },
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+
+# SQL Server Configuration (uncomment when dependencies are properly installed)
+DATABASES = {
+    'default': {
+        'ENGINE': 'mssql',
+        'NAME': 'crasdb',
+        'USER': 'sa',
+        'PASSWORD': 'sa-1234',
+        'HOST': '103.31.83.27',
+        'PORT': '1433',
+        'OPTIONS': {
+            'driver': 'ODBC Driver 18 for SQL Server',
+            'extra_params': 'Encrypt=yes;TrustServerCertificate=yes;'
+        },
+    }
+}
 
 
 # Password validation
@@ -154,6 +155,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
 ]
 
 CORS_ALLOW_CREDENTIALS = True

@@ -8,7 +8,7 @@ class SourceConnection(models.Model):
     DB_TYPE_CHOICES = [
         ('mysql', 'MySQL'),
         ('postgresql', 'PostgreSQL'),
-        ('sqlserver', 'SQL Server'),
+        ('SQL Server', 'SQL Server'),
         ('oracle', 'Oracle'),
         ('sqlite', 'SQLite'),
         ('mongodb', 'MongoDB'),
@@ -31,6 +31,7 @@ class SourceConnection(models.Model):
     class Meta:
         # db_table = 'source_connection'  # Uncomment when using SQL Server
         verbose_name = 'Source Connection'
+        db_table ='source_connection'
         verbose_name_plural = 'Source Connections'
         ordering = ['-created_at']
         unique_together = ['source_name', 'host', 'port']
