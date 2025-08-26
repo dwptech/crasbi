@@ -8,7 +8,7 @@ class SourceConnection(models.Model):
     DB_TYPE_CHOICES = [
         ('mysql', 'MySQL'),
         ('postgresql', 'PostgreSQL'),
-        ('SQL Server', 'SQL Server'),
+        ('sqlserver', 'SQL Server'),
         ('oracle', 'Oracle'),
         ('sqlite', 'SQLite'),
         ('mongodb', 'MongoDB'),
@@ -31,7 +31,6 @@ class SourceConnection(models.Model):
     class Meta:
         db_table = 'source_connection'  # Use exact table name from SQL schema
         verbose_name = 'Source Connection'
-        db_table ='source_connection'
         verbose_name_plural = 'Source Connections'
         ordering = ['-created_at']
         unique_together = ['source_name', 'host', 'port']
@@ -99,3 +98,34 @@ class Job(models.Model):
 
     def __str__(self):
         return self.job_name
+
+class JobExecution(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('running', 'Running'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    id = models.AutoField(primary_key=True)
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='executions')
+    source_name = models.CharField(max_length=255)  # Store source name for quick access
+    job_name = models.CharField(max_length=255)     # Store job name for quick access
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    execution_time_seconds = models.FloatField(null=True, blank=True)  # Time taken to execute
+    records_processed = models.IntegerField(null=True, blank=True)     # Number of records processed
+    executed_by = models.CharField(max_length=100)                     # Who executed the job
+    executed_at = models.DateTimeField(auto_now_add=True)             # When execution started
+    completed_at = models.DateTimeField(null=True, blank=True)        # When execution completed
+    error_message = models.TextField(null=True, blank=True)           # Error details if failed
+    execution_log = models.TextField(null=True, blank=True)           # Detailed execution log
+
+    class Meta:
+        db_table = 'job_executions'
+        verbose_name = 'Job Execution'
+        verbose_name_plural = 'Job Executions'
+        ordering = ['-executed_at']
+
+    def __str__(self):
+        return f"{self.job_name} - {self.status} ({self.executed_at})"
