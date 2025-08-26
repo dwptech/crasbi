@@ -300,7 +300,7 @@ class ETLViewSet(viewsets.ViewSet):
             return (
                 f"DRIVER={{ODBC Driver 18 for SQL Server}};"
                 f"SERVER={source_connection.host},{source_connection.port};"
-                f"DATABASE=crasdb;"
+                f"DATABASE=TestingDB19082025;"
                 f"UID={source_connection.username};"
                 f"PWD={source_connection.password};"
                 f"Encrypt=yes;TrustServerCertificate=yes;"
