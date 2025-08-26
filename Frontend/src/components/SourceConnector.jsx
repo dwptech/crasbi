@@ -6,6 +6,8 @@ const SourceConnectionManager = () => {
   const [showForm, setShowForm] = useState(false);
   const [connections, setConnections] = useState([]);
   const [editingConnection, setEditingConnection] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     id: '',
     source_name: '',
@@ -14,41 +16,98 @@ const SourceConnectionManager = () => {
     port: '',
     username: '',
     password: '',
-    is_active: true,
-    inserted_by: 'admin'
+    is_active: true
   });
 
-  // Sample initial data
-  useEffect(() => {
-    const sampleConnections = [
-      {
-        id: 1,
-        source_name: 'SAP S/4HANA Production',
-        db_type: 'SQL Server',
-        host: '192.168.1.100',
-        port: 1433,
-        username: 'sap_user',
-        password: '••••••••',
-        is_active: true,
-        created_at: '2025-01-15 10:30:00',
-        updated_at: '2025-01-15 10:30:00',
-        inserted_by: 'admin'
-      },
-      {
-        id: 2,
-        source_name: 'SAP Business One',
-        db_type: 'MySQL',
-        host: '192.168.1.101',
-        port: 3306,
-        username: 'b1_user',
-        password: '••••••••',
-        is_active: true,
-        created_at: '2025-01-15 11:00:00',
-        updated_at: '2025-01-15 11:00:00',
-        inserted_by: 'admin'
+  // Base API URL - adjust this to match your backend
+  const API_BASE_URL ='http://localhost:8000';
+  
+  // Debug API calls
+  const apiCall = async (url, options = {}) => {
+    console.log('API Call:', url, options);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          // Add any additional headers your backend needs
+          // 'Authorization': 'Bearer your-token', // If needed
+          ...options.headers,
+        },
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
+      return response;
+    } catch (error) {
+      console.error('Fetch error:', error);
+      throw error;
+    }
+  };
+
+  // Fetch connections from backend
+  const fetchConnections = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Fetching from:', `${API_BASE_URL}/api/source-connections/`);
+      
+      const response = await apiCall(`${API_BASE_URL}/api/source-connections/`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    ];
-    setConnections(sampleConnections);
+      
+      const data = await response.json();
+      console.log('Fetched data:', data);
+      console.log('Data type:', typeof data);
+      console.log('Is array:', Array.isArray(data));
+      
+      // Check if data is an array
+      if (!Array.isArray(data)) {
+        console.error('Backend returned non-array data:', data);
+        // Handle different response structures
+        if (data && data.results && Array.isArray(data.results)) {
+          // Django REST Framework pagination format
+          console.log('Using data.results (paginated response)');
+          const connectionsWithMaskedPasswords = data.results.map(conn => ({
+            ...conn,
+            password: '••••••••'
+          }));
+          setConnections(connectionsWithMaskedPasswords);
+        } else if (data && data.data && Array.isArray(data.data)) {
+          // Custom API wrapper format
+          console.log('Using data.data');
+          const connectionsWithMaskedPasswords = data.data.map(conn => ({
+            ...conn,
+            password: '••••••••'
+          }));
+          setConnections(connectionsWithMaskedPasswords);
+        } else {
+          throw new Error(`Expected array but got ${typeof data}. Response structure: ${JSON.stringify(data, null, 2)}`);
+        }
+      } else {
+        // Data is already an array
+        const connectionsWithMaskedPasswords = data.map(conn => ({
+          ...conn,
+          password: '••••••••'
+        }));
+        setConnections(connectionsWithMaskedPasswords);
+      }
+      
+    } catch (err) {
+      console.error('Error fetching connections:', err);
+      setError(`Failed to fetch connections: ${err.message}`);
+      setConnections([]); // Set empty array on error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchConnections();
   }, []);
 
   const handleInputChange = (e) => {
@@ -59,40 +118,104 @@ const SourceConnectionManager = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (editingConnection) {
-      const updatedConnections = connections.map(conn => 
-        conn.id === editingConnection.id 
-          ? { ...formData, id: editingConnection.id, updated_at: new Date().toLocaleString() }
-          : conn
-      );
-      setConnections(updatedConnections);
-      setEditingConnection(null);
-    } else {
-      const newConnection = {
-        ...formData,
-        id: Math.max(...connections.map(c => c.id), 0) + 1,
-        password: '••••••••',
-        created_at: new Date().toLocaleString(),
-        updated_at: new Date().toLocaleString()
-      };
-      setConnections([...connections, newConnection]);
+    try {
+      setLoading(true);
+      setError(null);
+      
+      if (editingConnection) {
+        // Update existing connection
+        const updateData = { ...formData };
+        // Remove password if it's empty (keep existing password)
+        if (!updateData.password) {
+          delete updateData.password;
+        }
+        
+        console.log('Updating connection:', updateData);
+        
+        const response = await apiCall(`${API_BASE_URL}/api/source-connections/${editingConnection.id}/`, {
+          method: 'PUT',
+          body: JSON.stringify(updateData),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Update error response:', errorText);
+          throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        }
+        
+        setEditingConnection(null);
+      } else {
+        // Add new connection - Clean the data before sending
+        const cleanFormData = {
+          source_name: formData.source_name.trim(),
+          db_type: formData.db_type,
+          host: formData.host.trim(),
+          port: parseInt(formData.port), // Ensure port is a number
+          username: formData.username.trim(),
+          password: formData.password,
+          is_active: Boolean(formData.is_active) // Ensure boolean
+        };
+        
+        console.log('Creating connection with cleaned data:', cleanFormData);
+        console.log('Data types:', {
+          source_name: typeof cleanFormData.source_name,
+          db_type: typeof cleanFormData.db_type,
+          host: typeof cleanFormData.host,
+          port: typeof cleanFormData.port,
+          username: typeof cleanFormData.username,
+          password: typeof cleanFormData.password,
+          is_active: typeof cleanFormData.is_active,
+          inserted_by: typeof cleanFormData.inserted_by
+        });
+        
+        const response = await apiCall(`${API_BASE_URL}/api/source-connections/`, {
+          method: 'POST',
+          body: JSON.stringify(cleanFormData),
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Create error response:', errorText);
+          console.error('Request payload was:', cleanFormData);
+          
+          try {
+            const errorJson = JSON.parse(errorText);
+            console.error('Parsed error:', errorJson);
+            throw new Error(`Validation Error: ${JSON.stringify(errorJson, null, 2)}`);
+          } catch {
+            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+          }
+        }
+        
+        const responseData = await response.json();
+        console.log('Successfully created connection:', responseData);
+      }
+      
+      // Refresh the connections list
+      await fetchConnections();
+      
+      // Reset form
+      setFormData({
+        id: '',
+        source_name: '',
+        db_type: '',
+        host: '',
+        port: '',
+        username: '',
+        password: '',
+        is_active: true
+      });
+      setShowForm(false);
+      
+    } catch (err) {
+      console.error('Error saving connection:', err);
+      setError(`Failed to save connection: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
-
-    setFormData({
-      id: '',
-      source_name: '',
-      db_type: '',
-      host: '',
-      port: '',
-      username: '',
-      password: '',
-      is_active: true,
-      inserted_by: 'admin'
-    });
-    setShowForm(false);
   };
 
   const handleEdit = (connection) => {
@@ -104,9 +227,33 @@ const SourceConnectionManager = () => {
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this connection?')) {
-      setConnections(connections.filter(conn => conn.id !== id));
+      try {
+        setLoading(true);
+        setError(null);
+        
+        console.log('Deleting connection:', id);
+        
+        const response = await apiCall(`${API_BASE_URL}/api/source-connections/${id}/`, {
+          method: 'DELETE',
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Delete error response:', errorText);
+          throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        }
+        
+        // Refresh the connections list
+        await fetchConnections();
+        
+      } catch (err) {
+        console.error('Error deleting connection:', err);
+        setError(`Failed to delete connection: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -121,8 +268,7 @@ const SourceConnectionManager = () => {
       port: '',
       username: '',
       password: '',
-      is_active: true,
-      inserted_by: 'admin'
+      is_active: true
     });
   };
 
@@ -150,68 +296,97 @@ const SourceConnectionManager = () => {
         <div className="table-container">
           <div className="table-header">
             <h2 className="table-title">All Source Connections</h2>
+            {error && (
+              <div className="error-message">
+                {error}
+                <button 
+                  onClick={() => {
+                    setError(null);
+                    fetchConnections();
+                  }}
+                  className="retry-button"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
           </div>
           
           <div className="table-wrapper">
-            <table className="connections-table">
-              <thead className="table-head">
-                <tr>
-                  <th>ID</th>
-                  <th>Source Name</th>
-                  <th>DB Type</th>
-                  <th>Host</th>
-                  <th>Port</th>
-                  <th>Username</th>
-                  <th>Status</th>
-                  <th>Created By</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody className="table-body">
-                {connections.map((connection) => (
-                  <tr key={connection.id} className="table-row">
-                    <td className="table-cell table-cell-id">{connection.id}</td>
-                    <td className="table-cell">{connection.source_name}</td>
-                    <td className="table-cell">
-                      <span className="status-badge status-badge-blue">
-                        {connection.db_type}
-                      </span>
-                    </td>
-                    <td className="table-cell">{connection.host}</td>
-                    <td className="table-cell">{connection.port}</td>
-                    <td className="table-cell">{connection.username}</td>
-                    <td className="table-cell">
-                      <span className={`status-badge ${
-                        connection.is_active 
-                          ? 'status-badge-green' 
-                          : 'status-badge-red'
-                      }`}>
-                        {connection.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="table-cell">{connection.inserted_by}</td>
-                    <td className="table-cell">
-                      <div className="action-buttons">
-                        <button
-                          onClick={() => handleEdit(connection)}
-                          className="action-button action-button-edit"
-                          title="Edit"
-                        >
-                          <Edit className="action-icon" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(connection.id)}
-                          className="action-button action-button-delete"
-                          title="Delete"
-                        >
-                          <Trash2 className="action-icon" />
-                        </button>
-                      </div>
-                    </td>
+            {loading ? (
+              <div className="loading-container">
+                <div className="loading-spinner"></div>
+                <p>Loading connections...</p>
+              </div>
+            ) : connections.length === 0 ? (
+              <div className="empty-state">
+                <Database className="empty-state-icon" />
+                <h3>No connections found</h3>
+                <p>Click "Add Connection" to create your first database connection.</p>
+              </div>
+            ) : (
+              <table className="connections-table">
+                <thead className="table-head">
+                  <tr>
+                    <th>ID</th>
+                    <th>Source Name</th>
+                    <th>DB Type</th>
+                    <th>Host</th>
+                    <th>Port</th>
+                    <th>Username</th>
+                    <th>Status</th>
+                    <th>Created By</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="table-body">
+                  {connections.map((connection) => (
+                    <tr key={connection.id} className="table-row">
+                      <td className="table-cell table-cell-id">{connection.id}</td>
+                      <td className="table-cell">{connection.source_name}</td>
+                      <td className="table-cell">
+                        <span className="status-badge status-badge-blue">
+                          {connection.db_type}
+                        </span>
+                      </td>
+                      <td className="table-cell">{connection.host}</td>
+                      <td className="table-cell">{connection.port}</td>
+                      <td className="table-cell">{connection.username}</td>
+                      <td className="table-cell">
+                        <span className={`status-badge ${
+                          connection.is_active 
+                            ? 'status-badge-green' 
+                            : 'status-badge-red'
+                        }`}>
+                          {connection.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="table-cell">{connection.inserted_by}</td>
+                      <td className="table-cell">
+                        <div className="action-buttons">
+                          <button
+                            onClick={() => handleEdit(connection)}
+                            className="action-button action-button-edit"
+                            title="Edit"
+                            disabled={loading}
+                          >
+                            <Edit className="action-icon" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(connection.id)}
+                            className="action-button action-button-delete"
+                            title="Delete"
+                            disabled={loading}
+                          >
+                            <Trash2 className="action-icon" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
@@ -327,21 +502,6 @@ const SourceConnectionManager = () => {
                       required={!editingConnection}
                       className="form-input"
                       placeholder={editingConnection ? "Leave empty to keep current password" : "Database password"}
-                    />
-                  </div>
-
-                  {/* Inserted By */}
-                  <div className="form-group">
-                    <label className="form-label">
-                      Inserted By
-                    </label>
-                    <input
-                      type="text"
-                      name="inserted_by"
-                      value={formData.inserted_by}
-                      onChange={handleInputChange}
-                      className="form-input"
-                      placeholder="User who created this connection"
                     />
                   </div>
 
