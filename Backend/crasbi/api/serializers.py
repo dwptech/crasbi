@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SourceConnection, Job
+from .models import SourceConnection, Job, JobExecution
 
 class SourceConnectionSerializer(serializers.ModelSerializer):
     db_type_display = serializers.CharField(source='get_db_type_display', read_only=True)
@@ -69,3 +69,30 @@ class JobDetailSerializer(serializers.ModelSerializer):
         model = Job
         fields = '__all__'
         read_only_fields = ['id', 'created_at']
+
+class JobExecutionSerializer(serializers.ModelSerializer):
+    source_name = serializers.CharField(read_only=True)
+    job_name = serializers.CharField(read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = JobExecution
+        fields = [
+            'id', 'job', 'source_name', 'job_name', 'status', 'status_display',
+            'execution_time_seconds', 'records_processed', 'executed_by', 
+            'executed_at', 'completed_at', 'error_message', 'execution_log'
+        ]
+        read_only_fields = ['id', 'source_name', 'job_name', 'executed_at', 'completed_at']
+
+class JobExecutionSummarySerializer(serializers.ModelSerializer):
+    source_name = serializers.CharField(read_only=True)
+    job_name = serializers.CharField(read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = JobExecution
+        fields = [
+            'id', 'source_name', 'job_name', 'status', 'status_display',
+            'execution_time_seconds', 'records_processed', 'executed_by', 'executed_at'
+        ]
+        read_only_fields = ['id', 'source_name', 'job_name', 'executed_at']
