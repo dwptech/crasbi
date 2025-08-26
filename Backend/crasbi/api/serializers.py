@@ -53,15 +53,36 @@ class SourceConnectionSerializer(serializers.ModelSerializer):
 
 class JobSerializer(serializers.ModelSerializer):
     source_name = serializers.CharField(source='source.source_name', read_only=True)
+    inserted_by_username = serializers.CharField(source='created_by', read_only=True)
 
     class Meta:
         model = Job
         fields = [
             'id', 'job_name', 'source', 'source_name', 'source_table', 'target_table',
-            'job_query', 'created_at', 'updated_at', 'created_by'
+            'job_query', 'created_at', 'updated_at', 'inserted_by_username'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'inserted_by_username']
 
+    def create(self, validated_data):
+        request = self.context.get('request')
+        
+        # If frontend passes source_name instead of id
+        source_name = self.initial_data.get('source_name')
+        if source_name:
+            try:
+                source = SourceConnection.objects.get(source_name=source_name)
+                validated_data['source'] = source
+            except SourceConnection.DoesNotExist:
+                raise serializers.ValidationError({"source": "Invalid source_name."})
+
+        # Handle created_by
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
+            validated_data['created_by'] = str(request.user)
+        else:
+            validated_data['created_by'] = 'system'
+
+        return super().create(validated_data)
+    
 class JobDetailSerializer(serializers.ModelSerializer):
     source = SourceConnectionSerializer(read_only=True)
 
