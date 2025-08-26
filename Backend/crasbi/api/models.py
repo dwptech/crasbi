@@ -122,7 +122,7 @@ class JobExecution(models.Model):
     execution_log = models.TextField(null=True, blank=True)           # Detailed execution log
 
     class Meta:
-        db_table = 'job_executions'
+        db_table = 'bi_job_executions'
         verbose_name = 'Job Execution'
         verbose_name_plural = 'Job Executions'
         ordering = ['-executed_at']

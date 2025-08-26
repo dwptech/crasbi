@@ -96,7 +96,7 @@ const ETLDashboard = () => {
       console.log('Running ETL for source:', selectedSource);
 
       // Simulate ETL process (replace with actual API call)
-      const response = await apiCall(`${API_BASE_URL}/api/etl/run_etl/)`,{
+      const response = await apiCall(`${API_BASE_URL}/api/etl/run_etl/`, {  // ← Fixed: removed extra )
         method: 'POST',
         body: JSON.stringify({
           source_id: parseInt(selectedSource)
